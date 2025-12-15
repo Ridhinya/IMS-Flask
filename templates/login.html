@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-container">
+    <div class="card shadow-lg">
+        <div class="card-body p-5">
+            <h2 class="text-center mb-4">🔐 IMS Login</h2>
+            
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="mb-4">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-control" name="username" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
+            </form>
+            
+            <div class="text-center">
+                <a href="{{ url_for('register') }}" class="btn btn-outline-secondary w-100">Register New Account</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

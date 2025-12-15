@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header with Search -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-6">
+            <h1>📦 Welcome, {{ username }}! Inventory Dashboard</h1>
+        </div>
+        <div class="col-md-6">
+            <div class="input-group">
+                <input type="text" class="form-control" id="searchInput"
+                       placeholder="🔍 Search products by name..."
+                       value="{{ search_query or '' }}">
+                <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                    Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Button -->
+    <div class="mb-4">
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger float-end">
+            🔒 Logout
+        </a>
+    </div>
+
+    <!-- Add Product Form -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5>➕ Add New Product</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('add_product') }}">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" name="name"
+                               placeholder="Product Name (e.g. Laptop)" required>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control" name="price"
+                               placeholder="Price (₹)" step="0.01" min="0" required>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control" name="quantity"
+                               placeholder="Quantity" min="1" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-success w-100">
+                            Add
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="card shadow-lg">
+        <div class="card-header d-flex justify-content-between align-items-center bg-warning">
+            <h5>📋 Your Products
+                <span class="badge bg-dark ms-2">{{ products|length }}</span>
+            </h5>
+            {% if low_stock %}
+                <span class="badge bg-danger fs-6">
+                    ⚠️ {{ low_stock|length }} Low Stock Items
+                </span>
+            {% endif %}
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 80px;">ID</th>
+                            <th style="width: 250px;">Product Name</th>
+                            <th style="width: 120px;">Price</th>
+                            <th style="width: 120px;">Quantity</th>
+                            <th style="width: 300px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td><strong>{{ product[0] }}</strong></td>
+                            <td>{{ product[1] }}</td>
+                            <td><strong>₹{{ "%.2f"|format(product[2]) }}</strong></td>
+                            <td>
+                                <span class="badge {{ 'bg-danger' if product[3] < 5 else 'bg-success' }} fs-6">
+                                    {{ product[3] }}
+                                </span>
+                            </td>
+                            <td>
+                                <!-- Update Quantity FIRST -->
+                                <form method="POST"
+                                      action="{{ url_for('update_quantity', product_id=product[0]) }}"
+                                      class="d-inline">
+                                    <div class="input-group input-group-sm" style="width: 160px;">
+                                        <input type="number" name="quantity"
+                                               class="form-control" value="{{ product[3] }}" min="0" required>
+                                        <button type="submit" class="btn btn-outline-primary">
+                                            Update
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <!-- Delete LAST -->
+                                <form method="POST"
+                                      action="{{ url_for('remove_product', product_id=product[0]) }}"
+                                      class="d-inline ms-2"
+                                      onsubmit="return confirm('Delete {{ product[1] }}?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        Delete
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <h5 class="text-muted">
+                                    No products found{% if search_query %} for "{{ search_query }}"{% endif %}.
+                                </h5>
+                                <p class="text-muted mb-3">Try another search or add a new product.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Stock Alert Section -->
+    {% if low_stock %}
+    <div class="card mt-4 shadow-sm border-danger">
+        <div class="card-header bg-danger text-white">
+            <h6>⚠️ Low Stock Alerts (Restock Soon!)</h6>
+        </div>
+        <div class="card-body">
+            {% for product in low_stock %}
+            <div class="alert alert-warning d-flex align-items-center mb-2">
+                <strong>{{ product[1] }}</strong>: Only {{ product[3] }} left
+                (Price: ₹{{ "%.2f"|format(product[2]) }})
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const clearBtn = document.getElementById('clearSearch');
+
+    // Live search with 2s debounce
+    let timeout;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(timeout);
+        const query = this.value.trim();
+        timeout = setTimeout(() => {
+            if (query.length > 0) {
+                window.location.href = `/search?q=${encodeURIComponent(query)}`;
+            } else {
+                window.location.href = '/dashboard';
+            }
+        }, 2000); // 2000 ms = 2 seconds
+    });
+
+    // Clear search
+    clearBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        window.location.href = '/dashboard';
+    });
+
+    // Auto-focus search on empty results
+    {% if not products and not search_query %}
+        searchInput.focus();
+    {% endif %}
+});
+</script>
+
+<style>
+.input-group .form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.25);
+}
+.table th {
+    font-weight: 600;
+    border-top: none;
+}
+.badge {
+    font-size: 0.875em;
+}
+</style>
+{% endblock %}
